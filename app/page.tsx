@@ -1,7 +1,11 @@
+'use client';
+
 import { Box, Container, Typography, Button } from '@mui/material';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
+  const router = useRouter();
+
   return (
     <Container maxWidth="md">
       <Box
@@ -29,17 +33,21 @@ export default function HomePage() {
         </Typography>
 
         <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-          <Link href="/auth/signin" passHref legacyBehavior>
-            <Button variant="contained" size="large">
-              로그인
-            </Button>
-          </Link>
+          <Button
+            onClick={() => router.push('/auth/signin')}
+            variant="contained"
+            size="large"
+          >
+            로그인
+          </Button>
 
-          <Link href="/about" passHref legacyBehavior>
-            <Button variant="outlined" size="large">
-              자세히 보기
-            </Button>
-          </Link>
+          <Button
+            onClick={() => router.push('/about')}
+            variant="outlined"
+            size="large"
+          >
+            자세히 보기
+          </Button>
         </Box>
       </Box>
     </Container>
