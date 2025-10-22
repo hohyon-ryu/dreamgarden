@@ -3,9 +3,13 @@ import {
   isSignInWithEmailLink,
   signInWithEmailLink,
   signOut as firebaseSignOut,
+  signInWithPopup,
+  GoogleAuthProvider,
   User,
 } from "firebase/auth";
 import { auth } from "./config";
+
+const googleProvider = new GoogleAuthProvider();
 
 const actionCodeSettings = {
   url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3200"}/auth/verify`,
@@ -82,4 +86,17 @@ export async function signOut(): Promise<void> {
  */
 export function getCurrentUser(): User | null {
   return auth.currentUser;
+}
+
+/**
+ * 구글 로그인
+ */
+export async function signInWithGoogle(): Promise<User> {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error) {
+    console.error("Error signing in with Google:", error);
+    throw error;
+  }
 }

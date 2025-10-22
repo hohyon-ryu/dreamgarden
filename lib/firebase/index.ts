@@ -3,6 +3,7 @@ export { auth, db, storage } from "./config";
 export {
   sendEmailLink,
   completeEmailLinkSignIn,
+  signInWithGoogle,
   signOut,
   getCurrentUser,
 } from "./auth";

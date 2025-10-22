@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Container,
   Box,
@@ -9,17 +10,21 @@ import {
   Button,
   Alert,
   Paper,
+  Divider,
 } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
-import { sendEmailLink } from '@/lib/firebase';
+import GoogleIcon from '@mui/icons-material/Google';
+import { sendEmailLink, signInWithGoogle } from '@/lib/firebase';
 
 export default function SignInPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -33,6 +38,20 @@ export default function SignInPage() {
       setError(err instanceof Error ? err.message : '로그인 링크 전송 실패');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError('');
+
+    try {
+      await signInWithGoogle();
+      router.push('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '구글 로그인 실패');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -76,7 +95,21 @@ export default function SignInPage() {
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <Button
+            fullWidth
+            variant="outlined"
+            size="large"
+            startIcon={<GoogleIcon />}
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+            sx={{ mb: 2 }}
+          >
+            {googleLoading ? '로그인 중...' : 'Google로 로그인'}
+          </Button>
+
+          <Divider sx={{ my: 3 }}>또는</Divider>
+
+          <form onSubmit={handleEmailSubmit}>
             <TextField
               fullWidth
               type="email"
@@ -95,8 +128,9 @@ export default function SignInPage() {
               variant="contained"
               size="large"
               disabled={loading || !email}
+              startIcon={<EmailIcon />}
             >
-              {loading ? '전송 중...' : '로그인 링크 받기'}
+              {loading ? '전송 중...' : '이메일 링크 받기'}
             </Button>
           </form>
 
