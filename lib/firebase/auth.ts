@@ -8,7 +8,7 @@ import {
 import { auth } from "./config";
 
 const actionCodeSettings = {
-  url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3200",
   handleCodeInApp: true,
 };
 
