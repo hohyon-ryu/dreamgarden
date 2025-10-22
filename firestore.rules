@@ -1,0 +1,170 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function: Check if user owns the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Helper function: Get user document
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // Helper function: Check if user has specific role
+    function hasRole(role) {
+      return isAuthenticated() && getUserDoc().data.role == role;
+    }
+
+    // Helper function: Check if user is teacher or parent of the student
+    function isTeacherOrParentOf(studentId) {
+      let student = get(/databases/$(database)/documents/students/$(studentId)).data;
+      let user = getUserDoc().data;
+
+      // Teacher check: student ID in managedStudentIds
+      let isTeacher = user.role == 'Teacher' &&
+                      user.managedStudentIds.hasAny([studentId]);
+
+      // Parent check: user ID in student's guardianIds
+      let isParent = user.role == 'Parent' &&
+                     student.guardianIds.hasAny([request.auth.uid]);
+
+      return isTeacher || isParent;
+    }
+
+    // ==========================================================
+    // Users Collection
+    // ==========================================================
+    match /users/{userId} {
+      // Read: User can read their own document
+      allow read: if isOwner(userId);
+
+      // Create: User can create their own document during onboarding
+      allow create: if isOwner(userId) &&
+                       request.resource.data.userId == userId;
+
+      // Update: User can update their own document
+      allow update: if isOwner(userId);
+
+      // Delete: Not allowed
+      allow delete: if false;
+    }
+
+    // ==========================================================
+    // Students Collection
+    // ==========================================================
+    match /students/{studentId} {
+      // Read: Teachers/Parents who manage/guard the student, or the student themselves
+      allow read: if isOwner(studentId) || isTeacherOrParentOf(studentId);
+
+      // Create: Teachers or Parents can create student profiles
+      allow create: if hasRole('Teacher') || hasRole('Parent');
+
+      // Update: Teachers/Parents who manage the student
+      allow update: if isTeacherOrParentOf(studentId);
+
+      // Delete: Not allowed
+      allow delete: if false;
+    }
+
+    // ==========================================================
+    // Records Collection (핵심 기록 데이터)
+    // ==========================================================
+    match /records/{recordId} {
+      // Read: Teachers/Parents who manage the student
+      allow read: if isAuthenticated() &&
+                     isTeacherOrParentOf(resource.data.studentId);
+
+      // Create: Teachers/Parents can create records for their students
+      allow create: if isAuthenticated() &&
+                       isTeacherOrParentOf(request.resource.data.studentId) &&
+                       request.resource.data.authorId == request.auth.uid;
+
+      // Update: Only the author can update their own record
+      allow update: if isAuthenticated() &&
+                       resource.data.authorId == request.auth.uid;
+
+      // Delete: Only the author can delete their own record
+      allow delete: if isAuthenticated() &&
+                       resource.data.authorId == request.auth.uid;
+    }
+
+    // ==========================================================
+    // Comments Collection
+    // ==========================================================
+    match /comments/{commentId} {
+      // Read: Anyone who can read the parent record can read comments
+      allow read: if isAuthenticated();
+
+      // Create: Authenticated users can create comments
+      allow create: if isAuthenticated() &&
+                       request.resource.data.authorId == request.auth.uid;
+
+      // Update: Only the author can update their own comment
+      allow update: if isOwner(resource.data.authorId);
+
+      // Delete: Only the author can delete their own comment
+      allow delete: if isOwner(resource.data.authorId);
+    }
+
+    // ==========================================================
+    // Portfolios Collection
+    // ==========================================================
+    match /portfolios/{portfolioId} {
+      // Read: Student, Teachers, and Parents can read
+      allow read: if isAuthenticated() &&
+                     (isOwner(resource.data.studentId) ||
+                      isTeacherOrParentOf(resource.data.studentId));
+
+      // Create/Update: Only system (via Cloud Functions) should create/update
+      // For now, allow authenticated users for development
+      allow create, update: if isAuthenticated();
+
+      // Delete: Not allowed
+      allow delete: if false;
+    }
+
+    // ==========================================================
+    // Facilities Collection
+    // ==========================================================
+    match /facilities/{facilityId} {
+      // Read: All authenticated users
+      allow read: if isAuthenticated();
+
+      // Create/Update: Only staff or teachers
+      allow create, update: if hasRole('Staff') || hasRole('Teacher');
+
+      // Delete: Not allowed
+      allow delete: if false;
+    }
+
+    // ==========================================================
+    // Competencies Collection
+    // ==========================================================
+    match /competencies/{competencyId} {
+      // Read: All authenticated users
+      allow read: if isAuthenticated();
+
+      // Write: Only system (Cloud Functions)
+      allow write: if false;
+    }
+
+    // ==========================================================
+    // Emotion Cards Collection (static reference data)
+    // ==========================================================
+    match /emotionCards/{emotionCardId} {
+      // Read: All authenticated users
+      allow read: if isAuthenticated();
+
+      // Write: Only admins/system
+      allow write: if false;
+    }
+  }
+}
