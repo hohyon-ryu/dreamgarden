@@ -20,22 +20,38 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 import PersonIcon from '@mui/icons-material/Person';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { getCurrentUser, signOut } from '@/lib/firebase';
+import { getCurrentUser, signOut, db } from '@/lib/firebase';
 import { User } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [hasProfile, setHasProfile] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      router.push('/auth/signin');
-    } else {
+    const checkUserProfile = async () => {
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        router.push('/auth/signin');
+        return;
+      }
+
       setUser(currentUser);
-    }
-    setLoading(false);
+
+      // Check if user has profile
+      try {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        setHasProfile(userDoc.exists());
+      } catch (error) {
+        console.error('프로필 확인 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkUserProfile();
   }, [router]);
 
   const handleSignOut = async () => {
@@ -91,19 +107,21 @@ export default function DashboardPage() {
         </Box>
 
         {/* Onboarding Alert */}
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <strong>프로필 설정이 필요합니다.</strong> 역할을 선택하고 프로필을 완성해주세요.
-          </Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => router.push('/onboarding/role')}
-            sx={{ mt: 1 }}
-          >
-            프로필 설정하기
-          </Button>
-        </Alert>
+        {!hasProfile && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              <strong>프로필 설정이 필요합니다.</strong> 역할을 선택하고 프로필을 완성해주세요.
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => router.push('/onboarding/role')}
+              sx={{ mt: 1 }}
+            >
+              프로필 설정하기
+            </Button>
+          </Alert>
+        )}
 
         {/* Quick Actions */}
         <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>
